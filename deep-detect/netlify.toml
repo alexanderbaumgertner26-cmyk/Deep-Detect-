@@ -1,9 +1,0 @@
-[build]
-  publish = "."
-  command = ""
-
-# Force pretty URLs to load index.html (for SPA-like behavior)
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
