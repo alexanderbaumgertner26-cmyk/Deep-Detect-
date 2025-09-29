@@ -1,0 +1,807 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Deep Detect — Enhanced Interactive Demo</title>
+  <style>
+    :root { --bg:#0b172a; --panel:#0f223d; --ink:#e5f2ff; --muted:#9db6cf; --accent:#4f9dfb; --warn:#f59e0b; --ok:#22c55e; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial;
+      background:linear-gradient(180deg,#061226,#0b1a35); color:var(--ink); }
+    .wrap { max-width:1400px; margin:0 auto; padding:24px; }
+    h1 { margin:0 0 8px; font-size:28px; display:flex; align-items:center; gap:10px; }
+    h2 { margin:16px 0 8px; font-size:18px; color:var(--accent); }
+    p.lead { margin:0 0 14px; color:var(--muted); }
+    .bar { display:flex; flex-wrap:wrap; gap:12px; margin:15px 0 12px; align-items:center; justify-content:center; }
+    button { background:transparent; color:var(--ink); border:1px solid rgba(255,255,255,.18);
+      padding:12px 20px; border-radius:12px; cursor:pointer; display:inline-flex; align-items:center; gap:10px; transition:all 0.2s; font-size:15px; }
+    button:hover { background:rgba(255,255,255,.08); }
+    button.primary { background:var(--accent); border-color:var(--accent); color:#001226; }
+    button.warn { border-color:var(--warn); color:var(--warn); }
+    button.success { border-color:var(--ok); color:var(--ok); }
+    button:disabled { opacity:.6; cursor:not-allowed; }
+    select { background:#ffffff10; color:var(--ink); border:1px solid #ffffff2a; border-radius:10px; padding:8px 10px; }
+    input[type="range"] { width: 120px; }
+    label.cb { display:inline-flex; align-items:center; gap:6px; font-size:14px; }
+    input[type="checkbox"] { width:16px; height:16px; }
+    .controls { display:flex; flex-wrap:wrap; gap:12px; margin:15px 0 20px; align-items:center; justify-content:space-between; }
+    .row { display:grid; grid-template-columns:1.2fr 0.8fr; gap:16px; }
+    .data-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px; }
+    .card { background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08); border-radius:16px; padding:16px; }
+    .mini-card { background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.06); border-radius:12px; padding:12px; }
+    .map { position:relative; height:420px; border-radius:16px; overflow:hidden;
+      background:linear-gradient(135deg,#2b6cb0,#0d47a1); border:1px solid rgba(255,255,255,.08); }
+    .land { position:absolute; background:#7ec7a8; opacity:.9; filter:drop-shadow(0 6px 16px rgba(0,0,0,.25)); }
+    .grid { position:absolute; inset:0;
+      background-image:linear-gradient(to right,rgba(255,255,255,.18) 1px,transparent 1px),
+                       linear-gradient(to bottom,rgba(255,255,255,.18) 1px,transparent 1px);
+      background-size:40px 40px; opacity:.25; }
+    .pin { position:absolute; transform:translate(-50%,-50%); transition:all 0.3s; }
+    .pin:hover { transform:translate(-50%,-50%) scale(1.05); }
+    .pin.alert { animation:pulse 2s infinite; }
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.7; } }
+    .pin > div { display:flex; align-items:center; gap:6px; background:white; color:#0b172a; padding:2px 8px;
+      border-radius:999px; box-shadow:0 6px 16px rgba(0,0,0,.25); font-size:13px; }
+    .pin.danger > div { background:#ef4444; color:white; }
+    .pin.warning > div { background:#f59e0b; color:white; }
+    .pin.offline > div { background:#6b7280; color:white; }
+    .dots { display:inline-flex; gap:4px; margin-left:6px; }
+    .dot { width:8px; height:8px; border-radius:50%; border:1px solid #0003; display:inline-block; }
+    .dot.oil { background:#f97316; }        /* orange */
+    .dot.chem { background:#10b981; }       /* green  */
+    .dot.noise { background:#22d3ee; }      /* cyan   */
+    .dot.temp { background:#ef4444; }       /* red for temperature */
+    .small { font-size:12px; color:var(--muted); }
+    .chatbox { height:180px; overflow:auto; background:rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:10px; }
+    .chatline { margin:6px 0; }
+    .inputrow { display:flex; gap:8px; margin-top:8px; }
+    .inputrow input { flex:1; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,.15);
+      background:rgba(255,255,255,.06); color:var(--ink); }
+    .newsitem { margin:8px 0; padding:10px; border:1px solid rgba(255,255,255,.08);
+      border-radius:10px; background:rgba(255,255,255,.04); }
+    .badge { font-size:12px; padding:2px 8px; border-radius:999px; border:1px solid rgba(255,255,255,.18); }
+    .pill { padding:2px 8px; border-radius:999px; font-size:12px; }
+    .ok { background:#DCFCE7; color:#166534; }
+    .mid { background:#FEF3C7; color:#92400E; }
+    .hi { background:#FEE2E2; color:#991B1B; }
+    /* Heatmap circles */
+    .heat { position:absolute; transform:translate(-50%,-50%); pointer-events:none; filter:blur(10px); opacity:.45; }
+    /* Weather overlay */
+    .weather { position:absolute; transform:translate(-50%,-50%); pointer-events:none; opacity:.7; font-size:20px; }
+    /* Sensor readings display */
+    .sensor-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; }
+    .sensor-value { text-align:center; }
+    .sensor-value .value { font-size:20px; font-weight:600; margin:4px 0; }
+    .sensor-value .label { font-size:12px; color:var(--muted); }
+    .sensor-value .unit { font-size:14px; color:var(--muted); }
+    /* Enhanced charts */
+    .mini-chart { height:60px; background:rgba(255,255,255,.02); border-radius:8px; margin-top:8px; position:relative; overflow:hidden; }
+    .chart-line { stroke:#4f9dfb; stroke-width:2; fill:none; }
+    .chart-area { fill:url(#gradient); opacity:0.3; }
+    .alert-banner { background:#ef4444; color:white; padding:8px 12px; border-radius:8px; margin:8px 0; font-size:14px; }
+    /* Stats panel */
+    .stats-panel { display:grid; grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); gap:8px; }
+    .stat-item { text-align:center; }
+    .stat-value { font-size:24px; font-weight:700; }
+    .stat-label { font-size:11px; color:var(--muted); text-transform:uppercase; }
+    /* Enhanced alerts */
+    .alert-item { display:flex; align-items:center; gap:8px; padding:8px; margin:4px 0; 
+      border-left:3px solid var(--warn); background:rgba(245,158,11,.1); border-radius:6px; }
+    .alert-item.critical { border-left-color:#ef4444; background:rgba(239,68,68,.1); }
+    /* Maintenance mode */
+    .maintenance-mode { opacity: 0.6; filter: saturate(0.3); }
+    /* Connection status */
+    .connection-status { display:flex; align-items:center; gap:6px; font-size:12px; }
+    .status-dot { width:8px; height:8px; border-radius:50%; }
+    .status-dot.online { background:var(--ok); animation:blink 2s infinite; }
+    .status-dot.offline { background:#6b7280; }
+    @keyframes blink { 0%,50% { opacity:1; } 51%,100% { opacity:0.3; } }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="module">
+    import React, { useEffect, useMemo, useRef, useState, useCallback } from "https://esm.sh/react@18";
+    import { createRoot } from "https://esm.sh/react-dom@18/client";
+    const h = React.createElement;
+
+    // Enhanced emoji "icons"
+    const I = {
+      gov: () => h("span",{style:{fontSize:"20px"}}, "🏛️"),
+      wifi: () => h("span",null,"📶"),
+      play: () => h("span",null,"▶️"),
+      pause: () => h("span",null,"⏸️"),
+      warn: () => h("span",null,"⚠️"),
+      tick: () => h("span",null,"🔄"),
+      send: () => h("span",null,"📨"),
+      news: () => h("span",null,"📰"),
+      copy: () => h("span",null,"📋"),
+      pin: () => h("span",null,"📍"),
+      chart: () => h("span",null,"📊"),
+      temp: () => h("span",null,"🌡️"),
+      drop: () => h("span",null,"💧"),
+      wave: () => h("span",null,"🌊"),
+      storm: () => h("span",null,"⛈️"),
+      maintenance: () => h("span",null,"🔧"),
+      satellite: () => h("span",null,"🛰️"),
+      alert: () => h("span",null,"🚨"),
+      shield: () => h("span",null,"🛡️"),
+    };
+
+    // Enhanced sensor data generation with weather effects
+    function generateSensorReading(base, variance, incident = false, weatherEffect = 1, min = 0, max = 100) {
+      const multiplier = incident ? 1.5 + Math.random() * 2 : weatherEffect;
+      const noise = (Math.random() - 0.5) * variance * multiplier;
+      return Math.max(min, Math.min(max, base + noise));
+    }
+
+    function App(){
+      // ----- Enhanced State
+      const oceans = ["Pacific","Atlantic","Indian","Southern","Arctic"];
+      const [selectedOcean, setSelectedOcean] = useState("Indian");
+      const [playing, setPlaying] = useState(false);
+      const [incident, setIncident] = useState(false);
+      const [tick, setTick] = useState(0);
+      const [activeBuoy, setActiveBuoy] = useState(null);
+      const [historicalData, setHistoricalData] = useState({});
+      const [weatherConditions, setWeatherConditions] = useState("Clear"); // Clear, Storm, Rough
+      const [updateSpeed, setUpdateSpeed] = useState(2000); // ms
+      const [maintenanceMode, setMaintenanceMode] = useState(false);
+
+      // Layers + filters
+      const [layers, setLayers] = useState({ oil:true, chemicals:true, noise:true, temperature:true, weather:true });
+      const [sensorSel, setSensorSel] = useState("Oil"); // Oil | Chemicals | Noise | Temperature
+      const [severitySel, setSeveritySel] = useState("All"); // All | Normal | Elevated/Watch/Moderate | High
+      const [heatmapOn, setHeatmapOn] = useState(true);
+
+      // Enhanced buoys with more realistic data and weather sensitivity
+      const baseBuoys = useMemo(()=>[
+        { 
+          id:"B1", name:"Rig Perimeter A", online:true, lat:22, lng:30, 
+          baseReadings: { oilPpm: 12, chemicalPh: 8.1, noiseDbl: 42, temp: 18.2, salinity: 35.2, turbidity: 12.5 },
+          sensors:{ oil:"Normal", chemicals:"Safe", noise:"Safe", temperature:"Normal" },
+          batteryLevel: 87, lastMaintenance: Date.now() - 86400000 * 15 // 15 days ago
+        },
+        { 
+          id:"B2", name:"Shipping Lane B", online:true, lat:42, lng:70,
+          baseReadings: { oilPpm: 8, chemicalPh: 8.0, noiseDbl: 68, temp: 16.5, salinity: 34.8, turbidity: 8.3 },
+          sensors:{ oil:"Normal", chemicals:"Safe", noise:"Moderate", temperature:"Normal" },
+          batteryLevel: 92, lastMaintenance: Date.now() - 86400000 * 8
+        },
+        { 
+          id:"B3", name:"Transfer Zone C", online:true, lat:65, lng:48,
+          baseReadings: { oilPpm: 28, chemicalPh: 7.9, noiseDbl: 45, temp: 19.1, salinity: 35.0, turbidity: 15.2 },
+          sensors:{ oil:"Elevated", chemicals:"Safe", noise:"Safe", temperature:"Normal" },
+          batteryLevel: 76, lastMaintenance: Date.now() - 86400000 * 22
+        },
+        { 
+          id:"B4", name:"Reef Edge", online:true, lat:35, lng:20,
+          baseReadings: { oilPpm: 15, chemicalPh: 8.3, noiseDbl: 55, temp: 21.8, salinity: 35.5, turbidity: 6.8 },
+          sensors:{ oil:"Normal", chemicals:"Watch", noise:"Moderate", temperature:"Normal" },
+          batteryLevel: 89, lastMaintenance: Date.now() - 86400000 * 12
+        },
+        { 
+          id:"B5", name:"Harbor Mouth", online:true, lat:78, lng:15,
+          baseReadings: { oilPpm: 32, chemicalPh: 7.8, noiseDbl: 75, temp: 17.9, salinity: 34.2, turbidity: 18.9 },
+          sensors:{ oil:"Elevated", chemicals:"Safe", noise:"High", temperature:"Normal" },
+          batteryLevel: 94, lastMaintenance: Date.now() - 86400000 * 5
+        },
+        { 
+          id:"B6", name:"Bay — North", online:Math.random() > 0.1, lat:12, lng:55, // 10% chance offline
+          baseReadings: { oilPpm: 6, chemicalPh: 8.2, noiseDbl: 38, temp: 20.3, salinity: 35.8, turbidity: 4.2 },
+          sensors:{ oil:"Normal", chemicals:"Safe", noise:"Safe", temperature:"Normal" },
+          batteryLevel: 23, lastMaintenance: Date.now() - 86400000 * 35 // Overdue maintenance
+        },
+      ],[]);
+
+      function buoysFor(o){
+        const shift = {Pacific:[5,0], Atlantic:[-10,5], Indian:[0,0], Southern:[0,20], Arctic:[0,-15]}[o];
+        return baseBuoys.map((b,i)=>({
+          ...b,
+          id: b.id+"-"+o[0],
+          name: b.name+" ("+o+")",
+          lat: Math.max(5, Math.min(95, b.lat + shift[1] + (i%2===0? 2:-2))),
+          lng: Math.max(5, Math.min(95, b.lng + shift[0] + (i%2===1? 3:-3))),
+          readings: {...b.baseReadings}, // Initialize current readings
+        }));
+      }
+
+      const [buoys, setBuoys] = useState(buoysFor(selectedOcean));
+      useEffect(()=>{ 
+        setBuoys(buoysFor(selectedOcean)); 
+        setActiveBuoy(null);
+        setHistoricalData({});
+      }, [selectedOcean]);
+
+      // Weather effects on sensors
+      const weatherEffects = {
+        Clear: { oil: 1, chemicals: 1, noise: 1, temp: 1 },
+        Storm: { oil: 1.3, chemicals: 1.5, noise: 2.2, temp: 1.2 },
+        Rough: { oil: 1.1, chemicals: 1.2, noise: 1.8, temp: 1.1 }
+      };
+
+      // Enhanced live updates with weather and maintenance effects
+      useEffect(()=>{ if(!playing) return; const id=setInterval(()=>setTick(t=>t+1),updateSpeed); return ()=>clearInterval(id); },[playing, updateSpeed]);
+      
+      useEffect(()=>{
+        if(!playing) return;
+        
+        setBuoys(prev => prev.map(b=>{
+          if(!b.online && !maintenanceMode) return b;
+          
+          const rand = (n)=> (Math.random()<.5 ? Math.max(5,n-1) : Math.min(95,n+1));
+          const hotspot = incident && (b.id.includes("B3") || b.id.includes("B5"));
+          const weather = weatherEffects[weatherConditions];
+          
+          // Maintenance mode effects
+          if (maintenanceMode) {
+            return { ...b, online: Math.random() > 0.3 }; // 70% chance online during maintenance
+          }
+
+          // Battery drain
+          const batteryDrain = b.online ? Math.random() * 0.5 : 0;
+          const newBattery = Math.max(0, b.batteryLevel - batteryDrain);
+          
+          // Go offline if battery too low
+          if (newBattery < 10) {
+            return { ...b, online: false, batteryLevel: newBattery };
+          }
+
+          // Generate realistic sensor readings with weather effects
+          const readings = {
+            oilPpm: generateSensorReading(b.baseReadings.oilPpm, 8, hotspot, weather.oil, 0, 100),
+            chemicalPh: generateSensorReading(b.baseReadings.chemicalPh, 0.3, hotspot && Math.random() > 0.7, weather.chemicals, 6.0, 9.0),
+            noiseDbl: generateSensorReading(b.baseReadings.noiseDbl, 12, false, weather.noise, 20, 100),
+            temp: generateSensorReading(b.baseReadings.temp, 2, false, weather.temp, 10, 35),
+            salinity: generateSensorReading(b.baseReadings.salinity, 1.5, false, 1, 30, 40),
+            turbidity: generateSensorReading(b.baseReadings.turbidity, 4, hotspot, weather.oil, 0, 50),
+          };
+
+          // Enhanced status determination
+          const oilStatus = readings.oilPpm > 35 ? "High" : readings.oilPpm > 22 ? "Elevated" : "Normal";
+          const chemStatus = readings.chemicalPh < 7.2 || readings.chemicalPh > 8.8 ? "High" : 
+                           readings.chemicalPh < 7.6 || readings.chemicalPh > 8.4 ? "Watch" : "Safe";
+          const noiseStatus = readings.noiseDbl > 70 ? "High" : readings.noiseDbl > 50 ? "Moderate" : "Safe";
+          const tempStatus = readings.temp > 28 || readings.temp < 12 ? "High" : readings.temp > 25 || readings.temp < 15 ? "Elevated" : "Normal";
+
+          return {
+            ...b,
+            lat: rand(b.lat), 
+            lng: rand(b.lng),
+            readings,
+            batteryLevel: newBattery,
+            sensors: {
+              oil: oilStatus,
+              chemicals: chemStatus,
+              noise: noiseStatus,
+              temperature: tempStatus,
+            }
+          };
+        }));
+
+        // Enhanced historical data storage
+        if (activeBuoy) {
+          setHistoricalData(prev => {
+            const key = activeBuoy.id;
+            const current = prev[key] || [];
+            const newPoint = {
+              time: Date.now(),
+              oilPpm: activeBuoy.readings?.oilPpm || activeBuoy.baseReadings.oilPpm,
+              chemicalPh: activeBuoy.readings?.chemicalPh || activeBuoy.baseReadings.chemicalPh,
+              noiseDbl: activeBuoy.readings?.noiseDbl || activeBuoy.baseReadings.noiseDbl,
+              temp: activeBuoy.readings?.temp || activeBuoy.baseReadings.temp,
+            };
+            return {
+              ...prev,
+              [key]: [...current.slice(-29), newPoint] // Keep last 30 points
+            };
+          });
+        }
+
+      },[tick, incident, playing, activeBuoy, weatherConditions, maintenanceMode]);
+
+      // ----- Chat & News (enhanced with weather and maintenance updates)
+      const chatEndRef = useRef(null);
+      const [draft, setDraft] = useState("");
+      const [oceanChats, setOceanChats] = useState({
+        Pacific:[{id:"p1",who:"Marco (Env)",ts:Date.now()-720000,text:"Moderate ship noise detected near corridor."}],
+        Atlantic:[{id:"a1",who:"Samir (Comms)",ts:Date.now()-600000,text:"Routine maintenance press note drafted."}],
+        Indian:[
+          {id:"i1",who:"Samir (Comms)",ts:Date.now()-600000,text:"Oil clean-up underway in Arabian Sea. B3 trending High."},
+          {id:"i2",who:"Priya (Ops)",ts:Date.now()-540000,text:"Skimmers en route to Transfer Zone C."},
+        ],
+        Southern:[{id:"s1",who:"Dana (Gov)",ts:Date.now()-500000,text:"Patrol scheduled for protected zone."}],
+        Arctic:[{id:"r1",who:"Marco (Env)",ts:Date.now()-400000,text:"Ice edge advancing; conserving buoy power."}],
+      });
+      useEffect(()=>{ chatEndRef.current?.scrollIntoView({behavior:"smooth"}); },[oceanChats,selectedOcean]);
+
+      function sendChat(){
+        if(!selectedOcean || !draft.trim()) return;
+        const msg = { id:"u-"+Date.now(), who:"You", text:draft.trim(), ts:Date.now() };
+        setOceanChats(prev => ({...prev,[selectedOcean]:[...(prev[selectedOcean]||[]), msg]}));
+        setDraft("");
+        setTimeout(()=>{
+          const replies=[
+            "Logged on incident board.", "Crew dispatched.", "Regulator dashboard updated.", 
+            "Hydrophone calibration scheduled.", "Skimmer en route.", "Weather team notified.",
+            "Satellite imagery requested.", "Emergency protocols activated."
+          ];
+          const reply={ id:"r-"+Date.now(), who:"Ops Bot", text: replies[Math.floor(Math.random()*replies.length)], ts:Date.now() };
+          setOceanChats(prev => ({...prev,[selectedOcean]:[...(prev[selectedOcean]||[]), reply]}));
+        }, 900);
+      }
+      const currentChat = oceanChats[selectedOcean] || [];
+
+      // Enhanced news with weather and maintenance
+      const oceanNews = {
+        Pacific:[
+          {id:"pn1",kind:"Noise",title:"Seasonal speed limit cuts noise 18%",location:"North Pacific corridor",status:"Monitoring"},
+          {id:"pn2",kind:"Weather",title:"Storm front approaching shipping lanes",location:"Central Pacific",status:"Advisory"}
+        ],
+        Atlantic:[
+          {id:"an1",kind:"Chemicals",title:"Minor solvent plume neutralized",location:"Mid-Atlantic ridge",status:"Resolved"},
+          {id:"an2",kind:"Maintenance",title:"Buoy B4 maintenance completed",location:"Reef Edge",status:"Operational"}
+        ],
+        Indian:[
+          {id:"in1",kind:"Oil",title:"Oil clean-up underway in India",location:"Arabian Sea — Transfer Zone C",status:"In progress"},
+          {id:"in2",kind:"Fishing",title:"Reef Edge reopens with advisory",location:"Reef Edge",status:"Monitoring"},
+          {id:"in3",kind:"Weather",title:"Rough seas affecting sensor accuracy",location:"Bay Area",status:"Monitoring"}
+        ],
+        Southern:[
+          {id:"sn1",kind:"Noise",title:"Research vessel noise within limits",location:"Study area",status:"Monitoring"},
+          {id:"sn2",kind:"Temperature",title:"Unusual warming detected",location:"Antarctic shelf",status:"Investigating"}
+        ],
+        Arctic:[
+          {id:"rn1",kind:"Oil",title:"Preventive valve maintenance done",location:"Arctic shelf",status:"Resolved"},
+          {id:"rn2",kind:"Ice",title:"Ice formation affecting B6 operations",location:"Northern sector",status:"Advisory"}
+        ],
+      };
+      const [newsState, setNewsState] = useState(oceanNews);
+      const news = newsState[selectedOcean] || [];
+
+      // Enhanced incident simulation
+      useEffect(()=>{
+        if(!incident) return;
+        const item = { id:"nx-"+Date.now(), kind:"Oil", title:"Simulated spill detected near B3", location:selectedOcean+" — Transfer Zone C", status:"In progress" };
+        setNewsState(prev => ({ ...prev, [selectedOcean]: [item, ...(prev[selectedOcean]||[])] }));
+        const msg = { id:"ix-"+Date.now(), who:"System", text:"🚨 INCIDENT: Oil spike near B3. All teams notified. Response initiated.", ts:Date.now() };
+        setOceanChats(prev => ({ ...prev, [selectedOcean]: [ ...(prev[selectedOcean]||[]), msg ] }));
+      }, [incident]);
+
+      // Weather change effects
+      useEffect(()=>{
+        if(weatherConditions !== "Clear") {
+          const msg = { id:"wx-"+Date.now(), who:"Weather Bot", text:`${weatherConditions} conditions detected. Monitoring sensor stability.`, ts:Date.now() };
+          setOceanChats(prev => ({ ...prev, [selectedOcean]: [ ...(prev[selectedOcean]||[]), msg ] }));
+        }
+      }, [weatherConditions, selectedOcean]);
+
+      // ----- Enhanced filter helpers
+      const getBySensor = (b, sensor) => {
+        switch(sensor) {
+          case "Oil": return b.sensors.oil;
+          case "Chemicals": return b.sensors.chemicals;
+          case "Noise": return b.sensors.noise;
+          case "Temperature": return b.sensors.temperature;
+          default: return b.sensors.oil;
+        }
+      };
+
+      function matchesSeverity(b){
+        if(severitySel==="All") return true;
+        const val = getBySensor(b, sensorSel);
+        if(severitySel==="Normal") return (val==="Normal"||val==="Safe");
+        if(severitySel==="Elevated") return (val==="Elevated"||val==="Watch"||val==="Moderate");
+        if(severitySel==="High") return val==="High";
+        return true;
+      }
+      const filtered = buoys.filter(matchesSeverity);
+
+      // Enhanced CSV download
+      function downloadCSV(){
+        const rows = [
+          ["Ocean","Buoy ID","Name","Lat","Lng","Oil Status","Oil (ppm)","Chemical Status","pH","Noise Status","Noise (dB)","Temp Status","Temp (°C)","Battery %","Online","Weather","Timestamp"],
+          ...filtered.map(b => [
+            selectedOcean, b.id, b.name, b.lat.toFixed(3), b.lng.toFixed(3), 
+            b.sensors.oil, (b.readings?.oilPpm || b.baseReadings.oilPpm).toFixed(1),
+            b.sensors.chemicals, (b.readings?.chemicalPh || b.baseReadings.chemicalPh).toFixed(2),
+            b.sensors.noise, (b.readings?.noiseDbl || b.baseReadings.noiseDbl).toFixed(1),
+            b.sensors.temperature, (b.readings?.temp || b.baseReadings.temp).toFixed(1),
+            b.batteryLevel.toFixed(0), b.online?"Yes":"No", weatherConditions,
+            new Date().toISOString()
+          ])
+        ];
+        const csv = rows.map(r => r.map(x => `"${String(x).replace(/"/g,'""')}"`).join(",")).join("\n");
+        const blob = new Blob([csv], {type:"text/csv"});
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `deepdetect_${selectedOcean}_${weatherConditions}_${Date.now()}.csv`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+      }
+
+      // ----- Enhanced UI helpers
+      const statusPill = (label, level) =>
+        h("span",{className:"pill " + (level==="High"?"hi":(level==="Elevated"||level==="Watch"||level==="Moderate")?"mid":"ok")}, label);
+
+      // Enhanced alert detection
+      const criticalAlerts = buoys.filter(b => 
+        b.sensors.oil === "High" || 
+        b.sensors.chemicals === "High" || 
+        b.sensors.temperature === "High" ||
+        (b.readings?.oilPpm > 40) ||
+        (b.readings?.chemicalPh < 7.0 || b.readings?.chemicalPh > 9.0) ||
+        b.batteryLevel < 15
+      );
+
+      const offlineBuoys = buoys.filter(b => !b.online);
+      const lowBatteryBuoys = buoys.filter(b => b.batteryLevel < 25);
+
+      const header = h("h1", null, I.gov(), "Deep Detect — Enhanced Interactive Demo");
+      const intro  = h("p",{className:"lead"},
+        "Advanced ocean sensor monitoring with weather effects, maintenance tracking, and enhanced analytics. ",
+        "Monitor live conditions, simulate incidents, and manage fleet operations."
+      );
+
+      // Enhanced ocean selector
+      const oceanBar = h("div",{className:"bar"},
+        ...oceans.map(o => h("button",{key:o, className: selectedOcean===o?"primary":"", onClick:()=>setSelectedOcean(o)}, o)),
+        h("span",{style:{flexGrow:1}}),
+        h("div",{className:"connection-status"},
+          h("div",{className:"status-dot " + (playing ? "online" : "offline")}),
+          playing ? "Live Monitoring" : "Monitoring Paused"
+        ),
+        h("button",{onClick:()=>{navigator.clipboard?.writeText(location.href); alert("Copied page URL to clipboard.");}}, I.copy(), " Share")
+      );
+
+      // Enhanced controls with weather and maintenance
+      const controls = h("div",{className:"controls"},
+        h("button",{onClick:()=>setPlaying(p=>!p), className:playing?"success":""}, playing? I.pause(): I.play(), " ", playing?"Pause":"Live"),
+        h("button",{className:"warn", onClick:()=>setIncident(v=>!v)}, I.warn(), " ", incident?"Resolve":"Simulate Spill"),
+        h("button",{onClick:()=>setMaintenanceMode(m=>!m), className:maintenanceMode?"warn":""}, I.maintenance(), " ", maintenanceMode?"Exit":"Maintenance"),
+        h("button",{onClick:()=>setTick(t=>t+1)}, I.tick(), " Manual Update"),
+        
+        h("span",{style:{marginLeft:16}}, "Weather:"),
+        h("select",{value:weatherConditions, onChange:e=>setWeatherConditions(e.target.value)},
+          h("option",{value:"Clear"},"☀️ Clear"),
+          h("option",{value:"Rough"},"🌊 Rough Seas"),
+          h("option",{value:"Storm"},"⛈️ Storm")
+        ),
+        
+        h("span",{style:{marginLeft:16}}, "Update Rate:"),
+        h("input",{type:"range", min:500, max:5000, step:500, value:updateSpeed, onChange:e=>setUpdateSpeed(+e.target.value)}),
+        h("span",{style:{fontSize:12}}, (updateSpeed/1000).toFixed(1)+"s"),
+        
+        h("span",{style:{marginLeft:16}}, "Sensor:"),
+        h("select",{value:sensorSel, onChange:e=>setSensorSel(e.target.value)},
+          h("option",{value:"Oil"},"Oil"),
+          h("option",{value:"Chemicals"},"Chemicals"),
+          h("option",{value:"Noise"},"Noise"),
+          h("option",{value:"Temperature"},"Temperature")
+        ),
+        
+        h("span",null,"Filter:"),
+        h("select",{value:severitySel, onChange:e=>setSeveritySel(e.target.value)},
+          h("option",{value:"All"},"All Levels"),
+          h("option",{value:"Normal"},"Normal Only"),
+          h("option",{value:"Elevated"},"Elevated+"),
+          h("option",{value:"High"},"Critical Only")
+        ),
+        
+        h("span",{style:{marginLeft:16}}, "Layers:"),
+        h("label",{className:"cb"}, h("input",{type:"checkbox",checked:layers.oil,onChange:e=>setLayers({...layers, oil:e.target.checked})}), "Oil"),
+        h("label",{className:"cb"}, h("input",{type:"checkbox",checked:layers.chemicals,onChange:e=>setLayers({...layers, chemicals:e.target.checked})}), "Chem"),
+        h("label",{className:"cb"}, h("input",{type:"checkbox",checked:layers.noise,onChange:e=>setLayers({...layers, noise:e.target.checked})}), "Noise"),
+        h("label",{className:"cb"}, h("input",{type:"checkbox",checked:layers.temperature,onChange:e=>setLayers({...layers, temperature:e.target.checked})}), "Temp"),
+        h("label",{className:"cb"}, h("input",{type:"checkbox",checked:layers.weather,onChange:e=>setLayers({...layers, weather:e.target.checked})}), "Weather"),
+        h("label",{className:"cb", style:{marginLeft:8}}, h("input",{type:"checkbox",checked:heatmapOn,onChange:e=>setHeatmapOn(e.target.checked)}), "Heatmap"),
+        
+        h("button",{onClick:downloadCSV, style:{marginLeft:"auto"}}, "⬇️ Export Data")
+      );
+
+      // Enhanced ocean maps (keeping your existing implementation)
+      function getOceanMap(ocean) {
+        const maps = {
+          Pacific: [
+            { top: "20%", left: "80%", width: "120px", height: "200px", borderRadius: "60% 40% 50% 30% / 70% 60% 40% 30%", transform: "rotate(15deg)" },
+            { top: "35%", left: "75%", width: "80px", height: "120px", borderRadius: "40% 60% 30% 70% / 50% 30% 70% 50%", transform: "rotate(-10deg)" },
+            { bottom: "15%", right: "25%", width: "200px", height: "140px", borderRadius: "30% 70% 60% 40% / 40% 30% 70% 60%" },
+            { top: "25%", left: "8%", width: "60px", height: "300px", borderRadius: "30% 70% 70% 30% / 60% 40% 60% 40%", transform: "rotate(5deg)" }
+          ],
+          Atlantic: [
+            { top: "15%", left: "15%", width: "80px", height: "280px", borderRadius: "20% 80% 80% 20% / 70% 60% 40% 30%", transform: "rotate(-5deg)" },
+            { top: "18%", right: "20%", width: "60px", height: "80px", borderRadius: "40% 60% 50% 50% / 60% 40% 60% 40%" },
+            { top: "30%", right: "18%", width: "100px", height: "200px", borderRadius: "60% 40% 30% 70% / 50% 50% 50% 50%", transform: "rotate(-8deg)" },
+            { bottom: "25%", left: "25%", width: "150px", height: "180px", borderRadius: "70% 30% 40% 60% / 60% 40% 60% 40%", transform: "rotate(8deg)" }
+          ],
+          Indian: [
+            { top: "15%", right: "30%", width: "120px", height: "200px", borderRadius: "30% 70% 60% 40% / 80% 60% 40% 20%", transform: "rotate(-5deg)" },
+            { top: "45%", right: "32%", width: "25px", height: "40px", borderRadius: "50%" },
+            { top: "50%", right: "45%", width: "40px", height: "120px", borderRadius: "40% 60% 60% 40% / 70% 70% 30% 30%", transform: "rotate(10deg)" },
+            { bottom: "20%", left: "25%", width: "180px", height: "160px", borderRadius: "60% 40% 30% 70% / 30% 70% 30% 70%" },
+            { top: "25%", right: "50%", width: "100px", height: "120px", borderRadius: "20% 80% 70% 30% / 60% 40% 60% 40%", transform: "rotate(-15deg)" }
+          ],
+          Southern: [
+            { bottom: "10%", left: "20%", width: "200px", height: "80px", borderRadius: "60% 40% 40% 60% / 50% 50% 50% 50%" },
+            { bottom: "8%", left: "45%", width: "150px", height: "70px", borderRadius: "70% 30% 30% 70% / 60% 40% 60% 40%" },
+            { bottom: "12%", right: "15%", width: "180px", height: "75px", borderRadius: "40% 60% 60% 40% / 50% 50% 50% 50%" },
+            { top: "20%", left: "18%", width: "60px", height: "80px", borderRadius: "30% 70% 80% 20% / 60% 40% 80% 20%", transform: "rotate(15deg)" },
+            { top: "25%", right: "25%", width: "80px", height: "60px", borderRadius: "60% 40% 70% 30% / 50% 50% 70% 30%", transform: "rotate(-10deg)" }
+          ],
+          Arctic: [
+            { top: "15%", left: "25%", width: "80px", height: "150px", borderRadius: "40% 60% 50% 50% / 70% 30% 70% 30%", transform: "rotate(-20deg)" },
+            { top: "35%", left: "15%", width: "200px", height: "100px", borderRadius: "50% 50% 30% 70% / 40% 60% 40% 60%", transform: "rotate(-5deg)" },
+            { top: "40%", right: "10%", width: "250px", height: "120px", borderRadius: "30% 70% 60% 40% / 50% 50% 40% 60%", transform: "rotate(5deg)" },
+            { top: "8%", left: "45%", width: "30px", height: "40px", borderRadius: "50%" },
+            { top: "35%", left: "35%", width: "40px", height: "35px", borderRadius: "60% 40% 50% 50% / 50% 50% 50% 50%" }
+          ]
+        };
+        return maps[ocean] || maps.Indian;
+      }
+
+      // Enhanced weather overlay
+      function getWeatherOverlay() {
+        if (!layers.weather || weatherConditions === "Clear") return [];
+        
+        const weatherIcons = {
+          Storm: "⛈️",
+          Rough: "🌊"
+        };
+        
+        return Array.from({length: 3}, (_, i) => 
+          h("div",{key:`weather-${i}`, className:"weather", style:{
+            top: (20 + i * 25) + "%", 
+            left: (15 + i * 30) + "%"
+          }}, weatherIcons[weatherConditions])
+        );
+      }
+
+      function heatColor(val){
+        if(val==="High") return "rgba(239,68,68,0.55)";        
+        if(val==="Elevated"||val==="Watch"||val==="Moderate") return "rgba(245,158,11,0.50)"; 
+        return "rgba(34,197,94,0.45)";                         
+      }
+
+      // Enhanced pin classification
+      function getPinClass(b) {
+        if (!b.online) return "pin offline";
+        if (b.sensors.oil === "High" || b.sensors.chemicals === "High" || b.sensors.temperature === "High" || 
+            (b.readings?.oilPpm > 40) || b.batteryLevel < 15) return "pin danger alert";
+        if (b.sensors.oil === "Elevated" || b.sensors.chemicals === "Watch" || 
+            b.sensors.noise === "High" || b.batteryLevel < 25) return "pin warning";
+        return "pin";
+      }
+
+      // Enhanced map with weather and maintenance modes
+      const mapClass = maintenanceMode ? "map maintenance-mode" : "map";
+      const map = h("div",{className:mapClass},
+        // Realistic landmasses
+        ...getOceanMap(selectedOcean).map((land, i) => 
+          h("div",{key:`land-${i}`, className:"land", style:land})
+        ),
+        h("div",{className:"grid"}),
+        
+        // Weather overlay
+        ...getWeatherOverlay(),
+
+        // Enhanced heatmap
+        ...(heatmapOn ? filtered.map(b => {
+          const val = getBySensor(b, sensorSel);
+          const size = (val==="High")? 200 : (val==="Elevated"||val==="Watch"||val==="Moderate")? 150 : 110;
+          return h("div",{key:"h-"+b.id, className:"heat", style:{
+            left:b.lng+"%", top:b.lat+"%", width:size+"px", height:size+"px",
+            borderRadius:"50%", background:heatColor(val)
+          }});
+        }) : []),
+
+        // Enhanced buoy pins
+        ...filtered.map(b => h("button",{key:b.id, className:getPinClass(b), style:{top:b.lat+"%", left:b.lng+"%"}, onClick:()=>setActiveBuoy(b)},
+          h("div",null, I.pin(), b.id,
+            b.batteryLevel < 25 ? h("span",{style:{color:"#f59e0b"}}, "⚡") : null,
+            h("span",{className:"dots"},
+              layers.oil ? h("span",{className:"dot oil", title:"Oil: "+b.sensors.oil + " (" + (b.readings?.oilPpm || b.baseReadings.oilPpm).toFixed(1) + " ppm)"}) : null,
+              layers.chemicals ? h("span",{className:"dot chem", title:"Chemicals: "+b.sensors.chemicals + " (pH " + (b.readings?.chemicalPh || b.baseReadings.chemicalPh).toFixed(1) + ")"}) : null,
+              layers.noise ? h("span",{className:"dot noise", title:"Noise: "+b.sensors.noise + " (" + (b.readings?.noiseDbl || b.baseReadings.noiseDbl).toFixed(0) + " dB)"}) : null,
+              layers.temperature ? h("span",{className:"dot temp", title:"Temperature: "+b.sensors.temperature + " (" + (b.readings?.temp || b.baseReadings.temp).toFixed(1) + "°C)"}) : null
+            )
+          )
+        ))
+      );
+
+      // Enhanced buoy detail panel
+      const buoyDetail = activeBuoy ? h("div",{style:{marginTop:12}},
+        h("div",{className:"card"},
+          h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center"}},
+            h("div",null, h("strong",null,activeBuoy.name)," ",
+              h("span",{className:"small"},"(",activeBuoy.lat.toFixed(1),"°, ",activeBuoy.lng.toFixed(1),"°)")),
+            h("div",{style:{display:"flex",alignItems:"center",gap:8}},
+              h("span",{style:{fontSize:12, color: activeBuoy.batteryLevel > 50 ? "var(--ok)" : activeBuoy.batteryLevel > 25 ? "var(--warn)" : "#ef4444"}}, 
+                "🔋 ", activeBuoy.batteryLevel.toFixed(0), "%"),
+              h("span",{style:{fontSize:12}}, I.wifi()," ", activeBuoy.online?"Online":"Offline")
+            )
+          ),
+          
+          // Enhanced status pills
+          h("div",{style:{display:"flex",gap:6, marginTop:8, flexWrap:"wrap"}},
+            statusPill("Oil: " + activeBuoy.sensors.oil, activeBuoy.sensors.oil),
+            statusPill("Chem: " + activeBuoy.sensors.chemicals, activeBuoy.sensors.chemicals),
+            statusPill("Noise: " + activeBuoy.sensors.noise, activeBuoy.sensors.noise),
+            statusPill("Temp: " + activeBuoy.sensors.temperature, activeBuoy.sensors.temperature)
+          ),
+
+          // Enhanced sensor readings with 6 sensors
+          h("h2", null, I.chart(), " Live Sensor Readings"),
+          h("div",{style:{display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, marginTop:12}},
+            h("div",{className:"mini-card sensor-value"},
+              h("div",{className:"label"}, I.drop(), " Oil Content"),
+              h("div",{className:"value", style:{color: activeBuoy.sensors.oil === "High" ? "#ef4444" : activeBuoy.sensors.oil === "Elevated" ? "#f59e0b" : "#22c55e"}}, 
+                (activeBuoy.readings?.oilPpm || activeBuoy.baseReadings.oilPpm).toFixed(1)),
+              h("div",{className:"unit"}, "ppm")
+            ),
+            h("div",{className:"mini-card sensor-value"},
+              h("div",{className:"label"}, "🧪 pH Level"),
+              h("div",{className:"value", style:{color: activeBuoy.sensors.chemicals === "High" ? "#ef4444" : activeBuoy.sensors.chemicals === "Watch" ? "#f59e0b" : "#22c55e"}}, 
+                (activeBuoy.readings?.chemicalPh || activeBuoy.baseReadings.chemicalPh).toFixed(2)),
+              h("div",{className:"unit"}, "pH")
+            ),
+            h("div",{className:"mini-card sensor-value"},
+              h("div",{className:"label"}, "📊 Noise Level"),
+              h("div",{className:"value", style:{color: activeBuoy.sensors.noise === "High" ? "#ef4444" : activeBuoy.sensors.noise === "Moderate" ? "#f59e0b" : "#22c55e"}}, 
+                (activeBuoy.readings?.noiseDbl || activeBuoy.baseReadings.noiseDbl).toFixed(0)),
+              h("div",{className:"unit"}, "dB")
+            ),
+            h("div",{className:"mini-card sensor-value"},
+              h("div",{className:"label"}, I.temp(), " Temperature"),
+              h("div",{className:"value", style:{color: activeBuoy.sensors.temperature === "High" ? "#ef4444" : activeBuoy.sensors.temperature === "Elevated" ? "#f59e0b" : "#22c55e"}}, 
+                (activeBuoy.readings?.temp || activeBuoy.baseReadings.temp).toFixed(1)),
+              h("div",{className:"unit"}, "°C")
+            ),
+            h("div",{className:"mini-card sensor-value"},
+              h("div",{className:"label"}, "🧂 Salinity"),
+              h("div",{className:"value"}, (activeBuoy.readings?.salinity || activeBuoy.baseReadings.salinity).toFixed(1)),
+              h("div",{className:"unit"}, "ppt")
+            ),
+            h("div",{className:"mini-card sensor-value"},
+              h("div",{className:"label"}, "🌫️ Turbidity"),
+              h("div",{className:"value"}, (activeBuoy.readings?.turbidity || activeBuoy.baseReadings.turbidity).toFixed(1)),
+              h("div",{className:"unit"}, "NTU")
+            )
+          ),
+
+          // Enhanced trend charts with gradient fill
+          historicalData[activeBuoy.id] && historicalData[activeBuoy.id].length > 1 ? 
+            h("div", null,
+              h("h2", {style:{fontSize:"16px", margin:"16px 0 8px"}}, "Sensor Trends (Last 30 readings)"),
+              h("div",{className:"mini-chart"},
+                h("svg",{width:"100%", height:"100%", viewBox:"0 0 300 60"},
+                  h("defs", null,
+                    h("linearGradient", {id:"gradient", x1:"0%", y1:"0%", x2:"0%", y2:"100%"},
+                      h("stop", {offset:"0%", stopColor:"#4f9dfb", stopOpacity:"0.4"}),
+                      h("stop", {offset:"100%", stopColor:"#4f9dfb", stopOpacity:"0"})
+                    )
+                  ),
+                  h("polygon",{
+                    className:"chart-area",
+                    points: "0,60 " + 
+                      historicalData[activeBuoy.id]
+                        .map((d, i) => `${i * (300 / (historicalData[activeBuoy.id].length - 1))},${60 - (d.oilPpm * 0.8)}`)
+                        .join(" ") + " 300,60"
+                  }),
+                  h("polyline",{
+                    className:"chart-line",
+                    points: historicalData[activeBuoy.id]
+                      .map((d, i) => `${i * (300 / (historicalData[activeBuoy.id].length - 1))},${60 - (d.oilPpm * 0.8)}`)
+                      .join(" ")
+                  })
+                )
+              )
+            ) : null,
+
+          // Enhanced alerts with maintenance info
+          h("div", {style:{marginTop:12}},
+            (activeBuoy.readings?.oilPpm > 40 || activeBuoy.readings?.chemicalPh < 7.0 || activeBuoy.readings?.chemicalPh > 9.0) ?
+              h("div",{className:"alert-item critical"}, I.alert(), " CRITICAL: Immediate attention required!") : null,
+            activeBuoy.batteryLevel < 15 ?
+              h("div",{className:"alert-item critical"}, "🔋 CRITICAL: Battery critically low") : null,
+            activeBuoy.batteryLevel < 25 ?
+              h("div",{className:"alert-item"}, "⚡ WARNING: Low battery - schedule maintenance") : null,
+            Date.now() - activeBuoy.lastMaintenance > 86400000 * 30 ?
+              h("div",{className:"alert-item"}, I.maintenance(), " Maintenance overdue by ", Math.floor((Date.now() - activeBuoy.lastMaintenance) / 86400000 - 30), " days") : null
+          )
+        )
+      ) : null;
+
+      const leftPanel = h("div",{className:"card"}, 
+        // Enhanced alerts banner
+        h("div", {style:{marginBottom:12}},
+          criticalAlerts.length > 0 ? 
+            h("div",{className:"alert-banner"}, 
+              I.alert(), " ", criticalAlerts.length, " critical alert", criticalAlerts.length > 1 ? "s" : "", " detected") : null,
+          offlineBuoys.length > 0 ?
+            h("div",{className:"alert-banner", style:{background:"#6b7280", marginTop:4}}, 
+              "📡 ", offlineBuoys.length, " buoy", offlineBuoys.length > 1 ? "s" : "", " offline") : null,
+          maintenanceMode ?
+            h("div",{className:"alert-banner", style:{background:"var(--warn)", marginTop:4}}, 
+              I.maintenance(), " System in maintenance mode") : null
+        ),
+        map, 
+        buoyDetail
+      );
+
+      // Enhanced chat panel
+      const chatPanel = h("div",{className:"card"},
+        h("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:6}}, 
+          h("strong",null,"Command Center — ", selectedOcean),
+          h("span",{className:"badge"}, weatherConditions)
+        ),
+        h("div",{className:"chatbox"},
+          ...(currentChat||[]).map(m => h("div",{key:m.id,className:"chatline"},
+            h("div",{className:"small"}, new Date(m.ts).toLocaleTimeString()),
+            h("div",null,h("strong",null,m.who,": "), m.text)
+          )),
+          h("div",{ref:chatEndRef})
+        ),
+        h("div",{className:"inputrow"},
+          h("input",{value:draft, onChange:e=>setDraft(e.target.value), placeholder:"Command input…", onKeyPress:e=>{if(e.key==="Enter") sendChat();}}),
+          h("button",{onClick:sendChat}, I.send(), " Send")
+        )
+      );
+
+      // Enhanced news panel
+      const newsPanel = h("div",{className:"card", style:{marginTop:12}},
+        h("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:6}}, I.news(), h("strong",null,"Operations Feed — ", selectedOcean)),
+        ...news.map(n => h("div",{key:n.id,className:"newsitem"},
+          h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center"}},
+            h("div",null,h("strong",null,n.title)),
+            h("span",{className:"badge " + (n.status==="In progress"?"hi":"ok")}, n.status)
+          ),
+          h("div",{className:"small",style:{marginTop:4}}, n.kind, " • ", n.location)
+        ))
+      );
+
+      // Enhanced system status with fleet overview
+      const systemStatus = h("div",{className:"card", style:{marginTop:12}},
+        h("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:8}}, I.satellite(), h("strong",null,"Fleet Status")),
+        h("div",{className:"stats-panel"},
+          h("div",{className:"stat-item"},
+            h("div",{className:"stat-value", style:{color:"var(--ok)"}}, buoys.filter(b => b.online).length),
+            h("div",{className:"stat-label"}, "Online")
+          ),
+          h("div",{className:"stat-item"},
+            h("div",{className:"stat-value", style:{color:criticalAlerts.length > 0 ? "#ef4444" : "var(--ok)"}}, criticalAlerts.length),
+            h("div",{className:"stat-label"}, "Critical")
+          ),
+          h("div",{className:"stat-item"},
+            h("div",{className:"stat-value", style:{color:lowBatteryBuoys.length > 0 ? "var(--warn)" : "var(--ok)"}}, lowBatteryBuoys.length),
+            h("div",{className:"stat-label"}, "Low Battery")
+          ),
+          h("div",{className:"stat-item"},
+            h("div",{className:"stat-value"}, Math.round(buoys.reduce((acc,b) => acc + b.batteryLevel, 0) / buoys.length)),
+            h("div",{className:"stat-label"}, "Avg Battery %")
+          )
+        ),
+        h("div",{style:{marginTop:12, padding:8, background:"rgba(255,255,255,.02)", borderRadius:6}},
+          h("div",{style:{fontSize:"12px", color:"var(--muted)", marginBottom:4}}, 
+            "Weather: ", weatherConditions, " | Update Rate: ", (updateSpeed/1000).toFixed(1),"s"
+          ),
+          h("div",{style:{fontSize:"12px", color:"var(--muted)"}}, 
+            "Last update: ", new Date().toLocaleTimeString(), " | ",
+            playing ? (maintenanceMode ? "Maintenance Active" : "Live Monitoring") : "Monitoring Paused"
+          )
+        )
+      );
+
+      return h("div",{className:"wrap"},
+        header, intro,
+        oceanBar, controls,
+        h("div",{className:"row"}, leftPanel, h("div",null,chatPanel, newsPanel, systemStatus))
+      );
+    }
+
+    createRoot(document.getElementById("root")).render(h(App));
+  </script>
+</body>
+</html>
